@@ -369,8 +369,10 @@ class ClangdManager():
         current_line = vimsupport.CurrentLine()
         _, column = vimsupport.CurrentLineAndColumn()
         start_column = min(column, len(current_line))
+        start_column -= 1
         while start_column:
-            if not str.isalnum(current_line[start_column - 1]):
+            c = current_line[start_column - 1]
+            if not (str.isalnum(c) or c == '_'):
                 break
             start_column -= 1
         return start_column, current_line[start_column:column]
@@ -382,16 +384,16 @@ class ClangdManager():
         line, column = vimsupport.CurrentLineAndColumn()
         log.debug('code complete at %d:%d' % (line, column))
         self.last_completions = {}
+        start_column, word = self.CalculateStartColumn()
         uri = GetUriFromFilePath(vimsupport.CurrentBufferFileName())
         try:
-            completions = self._client.completeAt(uri, line, column)
+            completions = self._client.completeAt(uri, line - 1, column - 1)
         except:
             log.exception('failed to code complete at %d:%d' % (line, column))
             return -2
         words = []
-        start_column, word = self.CalculateStartColumn()
         total_cnt = len(completions)
-        if start_column == column:
+        if word == '':
             completions = sorted(
                 completions, key=lambda completion: completion['kind'] if completion.has_key('kind') else 1)
             completions = completions[0:20]
