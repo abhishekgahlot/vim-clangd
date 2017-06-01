@@ -22,18 +22,11 @@ PublishDiagnostics_NOTIFICATION = 'textDocument/publishDiagnostics'
 class LSPClient():
     def __init__(self, input_fd, output_fd):
         self._rpcclient = JsonRPCClient(self, input_fd, output_fd)
+        self._is_alive = True
         self._documents = {}
 
-    def initialize(self):
-        rr = self._rpcclient.sendRequest(Initialize_REQUEST, {
-            'processId': os.getpid(),
-            'rootUri': 'file://' + os.getcwd(),
-            'capabilities': {},
-            'trace': 'off'
-        })
-        log.info('clangd connected with piped fd')
-        log.info('clangd capabilities: %s' % rr['capabilities'])
-        return rr
+    def isAlive(self):
+        return self._is_alive
 
     def onNotification(self, method, params):
         if method == PublishDiagnostics_NOTIFICATION:
@@ -45,6 +38,21 @@ class LSPClient():
 
     def onResponse(self, request, response):
         pass
+
+    def onServerDown(self):
+        log.warn('clangd is down unexceptedly')
+        self._is_alive = False
+
+    def initialize(self):
+        rr = self._rpcclient.sendRequest(Initialize_REQUEST, {
+            'processId': os.getpid(),
+            'rootUri': 'file://' + os.getcwd(),
+            'capabilities': {},
+            'trace': 'off'
+        })
+        log.info('clangd connected with piped fd')
+        log.info('clangd capabilities: %s' % rr['capabilities'])
+        return rr
 
     def onInitialized(self):
         return self._rpcclient.sendNotification(Initialized_NOTIFICATION)

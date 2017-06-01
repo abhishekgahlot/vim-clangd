@@ -107,7 +107,8 @@ class ClangdManager():
         return 'ClangdManager'
 
     def isAlive(self):
-        return self._clangd and self._clangd.poll() == None
+        return self._clangd and self._clangd.poll(
+        ) == None and self._client.isAlive()
 
     def startServer(self, confirmed=False):
         if self._clangd:

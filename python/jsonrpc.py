@@ -13,6 +13,7 @@
 #
 import json, os
 import glog as log
+from timeout import timeout, TimeoutError
 
 
 def EstimateUnreadBytes(fd):
@@ -35,12 +36,20 @@ class JsonRPCClient:
     def sendRequest(self, method, params={}, nullResponse=False):
         Id = self._no
         self._no = self._no + 1
-        r = self.SendMsg(method, params, Id=Id)
+        try:
+            r = self.SendMsg(method, params, Id=Id)
+        except TimeoutError:
+            self._observer.onServerDown()
+            raise
         log.debug('send request: %s' % r)
         if nullResponse:
             return None
         while True:
-            rr = self.RecvMsg()
+            try:
+                rr = self.RecvMsg()
+            except TimeoutError:
+                self._observer.onServerDown()
+                raise
             if rr.has_key('id') and rr['id'] == Id:
                 if rr.has_key('error'):
                     raise Exception('bad error_code %d' % rr['error'])
@@ -48,13 +57,22 @@ class JsonRPCClient:
         return None
 
     def sendNotification(self, method, params={}):
-        r= self.SendMsg(method, params)
+        try:
+            r= self.SendMsg(method, params)
+        except TimeoutError:
+            self._observer.onServerDown()
+            raise
         log.debug('send notifications: %s' % r)
 
     def handleRecv(self):
         while EstimateUnreadBytes(self._output_fd) > 0:
-            self.RecvMsg()
+            try:
+                self.RecvMsg()
+            except TimeoutError:
+                self._observer.onServerDown()
+                raise
 
+    @timeout(5)
     def SendMsg(self, method, params={}, Id=None):
         r = {}
         r['jsonrpc'] = '2.0'
@@ -68,6 +86,7 @@ class JsonRPCClient:
         os.write(self._input_fd, request)
         return r
 
+    @timeout(5)
     def RecvMsg(self):
         msg_length = self.RecvMsgHeader()
         msg = ''
@@ -86,6 +105,7 @@ class JsonRPCClient:
             self._requests.pop(rr['id'])
         return rr
 
+    @timeout(5)
     def RecvMsgHeader(self):
         os.read(self._output_fd, len('Content-Length: '))
         buf = ''
