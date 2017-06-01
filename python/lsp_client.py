@@ -103,13 +103,13 @@ class LSPClient():
             return
         version = self._documents.pop(uri)['version']
         return self._rpcclient.sendNotification(
-            DidSaveTextDocument_NOTIFICATION, {'textDocument': {
+            DidCloseTextDocument_NOTIFICATION, {'textDocument': {
                 'uri': uri
             }})
 
     def didSaveTestDocument(self, uri):
         return self._rpcclient.sendNotification(
-            DidCloseTextDocument_NOTIFICATION, {'textDocument': {
+            DidSaveTextDocument_NOTIFICATION, {'textDocument': {
                 'uri': uri
             }})
 

@@ -43,12 +43,10 @@ class EventDispatcher:
 
     def OnBufferUnload(self, file_name):
         log.info('BufferUnload %s' % file_name)
-        # FIXME not true close
         self.manager.CloseFile(file_name)
 
     def OnBufferDelete(self, file_name):
         log.info('BufferDelete %s' % file_name)
-        # FIXME not true close
         self.manager.CloseFile(file_name)
 
     def OnCursorMove(self):
