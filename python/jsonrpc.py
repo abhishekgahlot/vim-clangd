@@ -70,7 +70,12 @@ class JsonRPCClient:
 
     def RecvMsg(self):
         msg_length = self.RecvMsgHeader()
-        msg = os.read(self._output_fd, msg_length)
+        msg = ''
+        while msg_length:
+            buf = os.read(self._output_fd, msg_length)
+            msg_length -= len(buf)
+            msg += buf
+
         rr = json.loads(msg)
         if not rr.has_key('id'):
             self.OnNotification(rr)
