@@ -119,13 +119,12 @@ class LSPClient():
         return self._documents[uri]['diagnostics']
 
     def completeAt(self, uri, line, character):
-        return self._rpcclient.sendRequest(
-            Completion_REQUEST, {
-                'textDocument': {
-                    'uri': uri,
-                    'position': {
-                      'line': line,
-                      'character': character
-                    }
-                }
-            })
+        return self._rpcclient.sendRequest(Completion_REQUEST, {
+            'textDocument': {
+                'uri': uri,
+            },
+            'position': {
+                'line': line,
+                'character': character
+            }
+        })

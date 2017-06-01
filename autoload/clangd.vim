@@ -139,7 +139,7 @@ fu! s:SetUpFirstRun()
        let g:clangd#clangd_executable = 'clangd'
     endif
     if !exists('g:clangd#popup_auto')
-       let g:clangd#popup_auto = 1
+       let g:clangd#popup_auto = 0
     endif
     if !exists('g:clangd#autostart')
        let g:clangd#autostart = 1
@@ -281,7 +281,6 @@ fu! s:ForceCompile()
 endf
 
 fu! clangd#CodeCompleteAt(findstart, base)
-  py log.info('code complete at ')
   if s:omnifunc_mode
     return clangd#OmniCompleteAt(a:findstart, a:base)
   endif
@@ -318,7 +317,7 @@ fu! clangd#OmniCompleteAt(findstart, base)
     endif
     let s:omnifunc_mode = 1
     let l:column = pyeval('manager.CodeCompleteAtCurrent()')
-    return l:column - 1
+    return l:column
   endif
 
   " return completions
@@ -349,7 +348,7 @@ fu! s:SetCompletionCallback()
   set completeopt+=menuone
   set completeopt-=longest
   let &l:completefunc = 'clangd#CodeCompleteAt'
-  "let &l:omnifunc = 'clangd#OmniCompleteAt'
+  " let &l:omnifunc = 'clangd#OmniCompleteAt'
 endf
 
 fu! s:GotoDefinition()

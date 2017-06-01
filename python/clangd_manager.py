@@ -18,6 +18,63 @@ def GetFilePathFromUri(uri):
     return uri[7:]
 
 
+def CompletionItemKind(kind):
+    ##export const Text = 1;
+    if kind == 1:
+        return 't'
+##export const Method = 2;
+    elif kind == 2:
+        return 'm'
+##export const Function = 3;
+    elif kind == 3:
+        return 'f'
+##export const Constructor = 4;
+    elif kind == 4:
+        return 'c'
+##export const Field = 5;
+    elif kind == 5:
+        return 'f'
+##export const Variable = 6;
+    elif kind == 6:
+        return 'v'
+##export const Class = 7;
+    elif kind == 7:
+        return 'c'
+##export const Interface = 8;
+    elif kind == 8:
+        return 'i'
+##export const Module = 9;
+    elif kind == 9:
+        return 'm'
+##export const Property = 10;
+    elif kind == 10:
+        return 'p'
+##export const Unit = 11;
+    elif kind == 11:
+        return 'u'
+##export const Value = 12;
+    elif kind == 12:
+        return 'v'
+##export const Enum = 13;
+    elif kind == 13:
+        return 'e'
+##export const Keyword = 14;
+    elif kind == 14:
+        return 'k'
+##export const Snippet = 15;
+    elif kind == 15:
+        return 's'
+##export const Color = 16;
+    elif kind == 16:
+        return 'c'
+##export const File = 17;
+    elif kind == 17:
+        return 'f'
+##export const Reference = 18;
+    elif kind == 18:
+        return 'f'
+    return ''
+
 def StartProcess(name):
     from os import pipe, devnull
     log_path = os.path.expanduser(
@@ -306,6 +363,17 @@ class ClangdManager():
             log.exception('failed to update curent buffer')
             vimsupport.EchoTruncatedText('unable to update curent buffer')
 
+
+    def CalculateStartColumn(self):
+        current_line = vimsupport.CurrentLine()
+        _, column = vimsupport.CurrentLineAndColumn()
+        start_column = min(column, len(current_line))
+        while start_column:
+            if not str.isalnum(current_line[start_column - 1]):
+                break
+            start_column -= 1
+        return start_column, current_line[start_column:column]
+
     def CodeCompleteAtCurrent(self):
         if not self.isAlive():
             return -2
@@ -315,28 +383,35 @@ class ClangdManager():
         self.last_completions = {}
         uri = GetUriFromFilePath(vimsupport.CurrentBufferFileName())
         try:
-            response = self._client.completeAt(uri, line, column)
+            completions = self._client.completeAt(uri, line, column)
         except:
             log.exception('failed to code complete at %d:%d' % (line, column))
             return -2
         words = []
-        for i in xrange(len(response.completions)):
-            completion = response.completions[i]
-            description = completion.typed_text
-            # TODO replace \t with more precise spaces
-            if completion.return_type:
-                description = description + "\t" + completion.return_type
+        start_column, word = self.CalculateStartColumn()
+        total_cnt = len(completions)
+        if start_column == column:
+            completions = sorted(
+                completions, key=lambda completion: completion['kind'] if completion.has_key('kind') else 1)
+            completions = completions[0:20]
+        else:
+            log.info('start column %d, start prefix %s' % (start_column, word))
+            completions = filter(lambda completion: completion['label'].startswith(word), completions)
+        log.info('%d completions in total, reduced to %d' % (total_cnt, len(completions)))
+        for completion in completions:
+            if not completion.has_key('kind'):
+                completion['kind'] = 1
+            if not completion.has_key('documentation'):
+                completion['documentation'] = completion['label']
             words.append({
-                'word': completion.text,
-                'abbr': completion.text,
-                'menu': description,
-                'kind': completion.kind,
-                'info': completion.brief_comment,  #document
-                'icase': 1,
-                'dup': 1
+                'word': completion['label'], # The actual completion
+                'kind': CompletionItemKind(completion['kind']), # The type of completion, one character
+                'info': completion['documentation'],  #document
+                'icase': 1, # ignore case
+                'dup': 1 # allow duplicates
             })
         self.last_completions = words
-        return response.start_column
+        return start_column + 1
 
     def GetCompletions(self):
         if len(self.last_completions) == 0:
