@@ -59,14 +59,14 @@ class LSPClient():
         self._rpcclient.handleRecv()
 
     # notifications
-    def didOpenTestDocument(self, uri, text):
+    def didOpenTestDocument(self, uri, text, file_type):
         self._documents[uri] = {}
         self._documents[uri]['version'] = 1
         return self._rpcclient.sendNotification(
             DidOpenTextDocument_NOTIFICATION, {
                 'textDocument': {
                     'uri': uri,
-                    'languageId': 'c',
+                    'languageId': file_type,
                     'version': 1,
                     'text': text
                 }

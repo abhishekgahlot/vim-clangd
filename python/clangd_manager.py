@@ -135,8 +135,9 @@ class ClangdManager():
         uri = GetUriFromFilePath(file_name)
         try:
             buf = vimsupport.GetBufferByName(file_name)
+            file_type = buf.options['filetype']
             text = vimsupport.ExtractUTF8Text(buf)
-            self._client.didOpenTestDocument(uri, text)
+            self._client.didOpenTestDocument(uri, text, file_type)
         except:
             log.exception('failed to open %s' % file_name)
             vimsupport.EchoTruncatedText('unable to open %s' % file_name)
@@ -271,11 +272,15 @@ class ClangdManager():
     def EchoDetailedErrorMessage(self):
         if not self.isAlive():
             return
-        current_line, current_column = vimsupport.CurrentLineAndColumn()
+        current_line, _ = vimsupport.CurrentLineAndColumn()
         if not self.lined_diagnostics.has_key(current_line):
             return
-        diagnostic = self.NearestDiagnostic(current_line, current_column)
-        vimsupport.EchoText(diagnostic['full_text'])
+        full_text = ''
+        for diagnostic in self.lined_diagnostics[current_line]:
+            full_text += 'L%d:C%d %s\n' % (diagnostic['lnum'],
+                                           diagnostic['col'],
+                                           diagnostic['text'])
+        vimsupport.EchoText(full_text[:-1])
 
     def UpdateSpecifiedBuffer(self, buf):
         if not self.isAlive():

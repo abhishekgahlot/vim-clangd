@@ -11,7 +11,7 @@ class EventDispatcher:
         log.debug('VimEnter')
         autostart = bool(vim.eval('g:clangd#autostart'))
         if autostart and not self.manager.isAlive():
-            vimsupport.EchoErrors('vim-clanged is not running')
+            vimsupport.EchoText('vim-clanged is not running')
             return
 
         log.info('vim-clangd plugin fully loaded')
@@ -27,9 +27,11 @@ class EventDispatcher:
         log.info('BufferReadPost %s' % file_name)
 
     def OnFileType(self):
-        log.info('FileType Changed')
-        if self.manager.OpenCurrentFile():
-            self.manager.GetDiagnosticsForCurrentFile()
+        log.info('Current FileType Changed To %s' %
+                 vimsupport.CurrentFileTypes()[0])
+        self.manager.CloseCurrentFile()
+        self.manager.OpenCurrentFile()
+        self.manager.GetDiagnosticsForCurrentFile()
 
     def OnBufferWritePost(self, file_name):
         # FIXME should we use buffer_number?
