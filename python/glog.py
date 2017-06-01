@@ -6,15 +6,6 @@ import traceback
 import os
 import sys
 
-import gflags
-
-gflags.DEFINE_string('log_path', '/tmp/clangd.log', 'Clangd Log path')
-
-import gflags as flags
-
-FLAGS = flags.FLAGS
-
-
 def format_message(record):
     try:
         record_message = '%s' % (record.msg % record.args)
@@ -103,61 +94,28 @@ GLOG_PREFIX_REGEX = (
 def init(log_level = None, log_path = None):
     if log_path is not None:
         log_path = os.path.expanduser(log_path)
-        FLAGS.log_path = log_path
-    handler = logging.FileHandler(FLAGS.log_path)
+    handler = logging.FileHandler(log_path)
     handler.setFormatter(GlogFormatter())
     logger.addHandler(handler)
 
     if log_level is not None:
         if log_level == 'debug':
-            FLAGS.verbosity = DEBUG
+            log_level = DEBUG
         elif log_level == 'info':
-            FLAGS.verbosity = INFO
+            log_level = INFO
         elif log_level == 'warning':
-            FLAGS.verbosity = WARNING
+            log_level = WARNING
         elif log_level == 'warn':
-            FLAGS.verbosity = WARN
+            log_level = WARN
         elif log_level == 'error':
-            FLAGS.verbosity = ERROR
+            log_level = ERROR
         elif log_level == 'exception':
-            FLAGS.verbosity = EXCEPTION
+            log_level = EXCEPTION
         elif log_level == 'fatal':
-            FLAGS.verbosity = FATAL
-    setLevel(FLAGS.verbosity)
-
-class CaptureWarningsFlag(flags.BooleanFlag):
-    def __init__(self):
-        flags.BooleanFlag.__init__(self, 'glog_capture_warnings', True,
-                                   "Redirect warnings to log.warn messages")
-
-    def Parse(self, arg):
-        flags.BooleanFlag.Parse(self, arg)
-        logging.captureWarnings(self.value)
-
-
-flags.DEFINE_flag(CaptureWarningsFlag())
-
-
-class VerbosityParser(flags.ArgumentParser):
-    """Sneakily use gflags parsing to get a simple callback."""
-
-    def Parse(self, arg):
-        try:
-            intarg = int(arg)
-            # Look up the name for this level (DEBUG, INFO, etc) if it exists
-            level = logging._levelNames.get(intarg, intarg)
-        except ValueError:
-            level = arg
-        setLevel(level)
-        return level
-
-flags.DEFINE(
-    parser=VerbosityParser(),
-    serializer=flags.ArgumentSerializer(),
-    name='verbosity',
-    default=logging.INFO,
-    help='Logging verbosity')
-
+            log_level = FATAL
+        else:
+            log_level = FATAL
+    setLevel(log_level)
 
 # Define functions emulating C++ glog check-macros
 # https://htmlpreview.github.io/?https://github.com/google/glog/master/doc/glog.html#check

@@ -58,11 +58,9 @@ python << endpython
 from vimsupport import EchoMessage
 import vim
 try:
-  import gflags
   import glog as log
   log_level = str(vim.eval('g:clangd#log_level'))
   log_path = str(vim.eval('g:clangd#log_path')) + '/vim-clangd.log'
-  gflags.FLAGS([])
   log.init(log_level, log_path)
 except Exception as e:
   EchoMessage(str(e))
