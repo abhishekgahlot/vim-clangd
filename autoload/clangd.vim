@@ -6,7 +6,6 @@ fu! s:restore_cpo()
   unlet s:save_cpo
 endf
 
-let g:clangd_executable = 'clangd'
 let s:script_folder_path = escape(expand('<sfile>:p:h'), '\')
 let s:old_cursor_position = []
 let s:omnifunc_mode = 0
@@ -23,9 +22,8 @@ fu! clangd#Enable()
   catch /.*/
     if v:exception != ""
         echoerr 'failed to initialize clangd plugin, ' v:exception
-    else
+        return
     endif
-    return
   endtry
   call s:TurnOffSyntasticForCFamily()
   call s:SetUpSyntasticSigns()
@@ -47,7 +45,6 @@ fu! clangd#Enable()
     autocmd TextChanged,TextChangedI * call s:TextChanged()
   augroup END
   call s:VimEnter()
-  py log.info('clangd plugin loaded')
 endf
 
 " Sub Entrances
@@ -138,6 +135,9 @@ fu! s:SetUpSyntasticHl()
 endf
 
 fu! s:SetUpFirstRun()
+    if !exists('g:clangd#clangd_executable')
+       let g:clangd#clangd_executable = 'clangd'
+    endif
     if !exists('g:clangd#popup_auto')
        let g:clangd#popup_auto = 1
     endif
@@ -155,8 +155,7 @@ endf
 " Watchers
 
 fu! s:VimEnter()
-  py autostart = vim.eval('g:clangd#autostart')
-  py handler.OnVimEnter(autostart)
+  py handler.OnVimEnter()
   " fix a bug it won't call buffer enter the very first file
   call s:FileType()
 endf

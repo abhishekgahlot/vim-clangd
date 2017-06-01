@@ -13,12 +13,15 @@ from subprocess import check_output, CalledProcessError, Popen
 def GetUriFromFilePath(file_path):
     return 'file://%s' % file_path
 
+
 def GetFilePathFromUri(uri):
     return uri[7:]
 
+
 def StartProcess(name):
     from os import pipe, devnull
-    log_path = os.path.expanduser(vim.eval('g:clangd#log_path') + '/clangd.log')
+    log_path = os.path.expanduser(
+        vim.eval('g:clangd#log_path') + '/clangd.log')
     fdClangd = open(log_path, 'w+')
     fdInRead, fdInWrite = pipe()
     fdOutRead, fdOutWrite = pipe()
@@ -36,6 +39,9 @@ class ClangdManager():
         self._clangd = None
         self._client = None
         self._clangd_logfd = None
+        autostart = bool(vim.eval('g:clangd#autostart'))
+        if autostart:
+            self.startServer(confirmed=True)
 
     def __del__(self):
         log.info('ClangdManager unloaded')
@@ -54,12 +60,16 @@ class ClangdManager():
             return
         if confirmed or vimsupport.PresentYesOrNoDialog(
                 'Should we start clangd?'):
+            clangd_executable = str(vim.eval('g:clangd#clangd_executable'))
+            clangd_executable = os.path.expanduser(clangd_executable)
             try:
-                clangd, fdRead, fdWrite, fdClangd = StartProcess('clangd')
+                clangd, fdRead, fdWrite, fdClangd = StartProcess(
+                    clangd_executable)
             except:
                 log.exception('failed to start clangd')
-                vimsupport.EchoText('Error %s' % err.output)
+                vimsupport.EchoMessage('failed to start clangd executable')
                 return
+            log.info('clangd started, pid %d' % clangd.pid)
             self._clangd = clangd
             self._client = LSPClient(fdRead, fdWrite)
             self._clangd_logfd = fdClangd

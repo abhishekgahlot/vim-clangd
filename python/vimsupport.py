@@ -166,6 +166,9 @@ def EchoTextH(text):
     for line in str(text).split('\n'):
         vim.command('{0} \'{1}\''.format('echoh', EscapeForVim(line)))
 
+def EchoErrors(text):
+    vim.command('{0} \'{1}\''.format('echoerr', EscapeForVim(text)))
+
 
 def EchoTruncatedText(text):
     width = int(vim.eval('&columns')) - 3

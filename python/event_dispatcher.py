@@ -1,22 +1,27 @@
 #!/usr/bin/env python
 import glog as log
-import vimsupport
+import vim, vimsupport
 
 
 class EventDispatcher:
     def __init__(self, manager):
         self.manager = manager
 
-    def OnVimEnter(self, autostart):
+    def OnVimEnter(self):
         log.debug('VimEnter')
-        if not self.manager.isAlive():
-            self.manager.startServer(confirmed=autostart)
+        autostart = bool(vim.eval('g:clangd#autostart'))
+        if autostart and not self.manager.isAlive():
+            vimsupport.EchoErrors('vim-clanged is not running')
+            return
+
+        log.info('vim-clangd plugin fully loaded')
 
     def OnVimLeave(self):
         log.debug('VimLeave')
         # BufUnload won't be called at exit, you need to call it yourself
         self.manager.CloseAllFiles()
         self.manager.stopServer(confirmed=True)
+        log.info('vim-clangd plugin fully unloaded')
 
     def OnBufferReadPost(self, file_name):
         log.info('BufferReadPost %s' % file_name)

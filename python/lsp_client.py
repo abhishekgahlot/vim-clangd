@@ -31,8 +31,8 @@ class LSPClient():
             'capabilities': {},
             'trace': 'off'
         })
-        log.info('clangd connected')
-        log.info('server capabilities: %s' % rr['capabilities'])
+        log.info('clangd connected with piped fd')
+        log.info('clangd capabilities: %s' % rr['capabilities'])
         return rr
 
     def onNotification(self, method, params):
