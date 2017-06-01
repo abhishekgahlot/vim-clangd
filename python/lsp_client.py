@@ -86,6 +86,10 @@ class LSPClient():
                 }]
             })
 
+    def closeAllFiles(self):
+        for uri in self._documents.iterkeys():
+            self.didCloseTestDocument(uri)
+
     def didCloseTestDocument(self, uri):
         if not self._documents.has_key(uri):
             return

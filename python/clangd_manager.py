@@ -261,10 +261,10 @@ class ClangdManager():
     def EchoDetailedErrorMessage(self):
         if not self.isAlive():
             return
-        current_line, _ = vimsupport.CurrentLineAndColumn()
+        current_line, current_column = vimsupport.CurrentLineAndColumn()
         if not self.lined_diagnostics.has_key(current_line):
             return
-        diagnostic = self.lined_diagnostics[current_line]
+        diagnostic = self.NearestDiagnostic(current_line, current_column)
         vimsupport.EchoText(diagnostic['full_text'])
 
     def UpdateSpecifiedBuffer(self, buf):
@@ -379,24 +379,7 @@ class ClangdManager():
     def CloseAllFiles(self):
         if not self.isAlive():
             return
-        for buf in vim.buffers:
-            if not buf.name:
-                continue
-            if buf.options['filetype'] in ['c', 'cpp', 'objc', 'objcpp']:
-                return self.CloseFile(buf.name)
-
-    def showServerInfo(self):
-        if self.isAlive():
-            response = self._client.GetServerInfo()
-        else:
-            response = None
-
-        if not response:
-            log.warning('clangd down')
-            vimsupport.EchoMessage('clangd down')
-            return
-
-        server_version = response.server_version
-        log.info('wcd server_version: %s' % response.server_version)
-        vimsupport.EchoMessage('vim_clangd up\nserver version %s' %
-                               (server_version))
+        try:
+            self._client.closeAllFiles()
+        except:
+            log.exception('failed to close all files')

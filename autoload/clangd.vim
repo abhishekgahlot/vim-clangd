@@ -393,10 +393,6 @@ fu! s:RestartServer()
   py manager.startServer(confirmed = True)
 endf
 
-fu! s:ServerInfo()
-  py manager.showServerInfo()
-endf
-
 fu! ClangdStatuslineFlag()
   if pyeval('manager.FilterCurrentFile()')
     return ''
@@ -407,13 +403,12 @@ endf
 " Setup Commands
 command! ClangdCodeComplete call feedkeys("\<C-X>\<C-U>\<C-P>", 'n')
 command! ClangdDiags call s:ShowDiagnostics()
-command! ClangdForceCompile call s:ForceCompile()
-command! ClangdGotoDefinition call s:GotoDefinition()
 command! ClangdShowDetailedDiagnostic call s:ShowDetailedDiagnostic()
-command! ClangdShowCursorDetail call s:ShowCursorDetail()
+command! ClangdForceCompile call s:ForceCompile()
+" command! ClangdGotoDefinition call s:GotoDefinition()
+" command! ClangdShowCursorDetail call s:ShowCursorDetail()
 command! ClangdStartServer call s:StartServer()
 command! ClangdStopServer call s:StopServer()
 command! ClangdRestartServer call s:RestartServer()
-command! ClangdServerInfo call s:ServerInfo()
 
 call s:restore_cpo()
