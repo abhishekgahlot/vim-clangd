@@ -139,7 +139,7 @@ fu! s:SetUpFirstRun()
        let g:clangd#clangd_executable = 'clangd'
     endif
     if !exists('g:clangd#popup_auto')
-       let g:clangd#popup_auto = 0
+       let g:clangd#popup_auto = 1
     endif
     if !exists('g:clangd#autostart')
        let g:clangd#autostart = 1
