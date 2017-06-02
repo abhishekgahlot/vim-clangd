@@ -4,9 +4,13 @@ import os
 import glog as log
 
 
+def PyVersion():
+  from sys import version_info
+  return version_info.major
+
 # Given an object, returns a str object that's utf-8 encoded.
 def ToUtf8IfNeeded(value):
-    if isinstance(value, unicode):
+    if PyVersion() < 3 and isinstance(value, unicode):
         return value.encode('utf8')
     if isinstance(value, str):
         return value
@@ -50,6 +54,9 @@ def GetBufferByName(file_name):
     return None
 
 def ExtractUTF8Text(buf):
+    if PyVersion() >= 3:
+        return '\n'.join(buf)
+
     enc = buf.options['fileencoding']
     if enc:
         decoded_textbody = []

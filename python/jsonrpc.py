@@ -50,8 +50,8 @@ class JsonRPCClient:
             except TimeoutError:
                 self._observer.onServerDown()
                 raise
-            if rr.has_key('id') and rr['id'] == Id:
-                if rr.has_key('error'):
+            if 'id' in rr and rr['id'] == Id:
+                if 'error' in rr:
                     raise Exception('bad error_code %d' % rr['error'])
                 return rr['result']
         return None
@@ -82,23 +82,24 @@ class JsonRPCClient:
             r['id'] = Id
             self._requests[Id] = r
         request = json.dumps(r, separators=(',',':'), sort_keys=True)
-        os.write(self._input_fd, 'Content-Length: %d\r\n\r\n' % len(request))
-        os.write(self._input_fd, request)
+        os.write(self._input_fd, (
+            u'Content-Length: %d\r\n\r\n' % len(request)).encode('utf-8'))
+        os.write(self._input_fd, request.encode('utf-8'))
         return r
 
     @timeout(5)
     def RecvMsg(self):
         msg_length = self.RecvMsgHeader()
-        msg = ''
+        msg = bytes()
         while msg_length:
             buf = os.read(self._output_fd, msg_length)
             msg_length -= len(buf)
             msg += buf
 
-        rr = json.loads(msg)
-        if not rr.has_key('id'):
+        rr = json.loads(msg.decode('utf-8'))
+        if not 'id' in rr:
             self.OnNotification(rr)
-        elif not self._requests.has_key(rr['id']):
+        elif not rr['id'] in self._requests:
             self.OnRequest(rr)
         else:
             self.OnResponse(self._requests[rr['id']], rr)
@@ -108,10 +109,10 @@ class JsonRPCClient:
     @timeout(5)
     def RecvMsgHeader(self):
         os.read(self._output_fd, len('Content-Length: '))
-        buf = ''
+        buf = bytes()
         buf += os.read(self._output_fd, 4)
         while True:
-            if buf.endswith('\r\n\r\n'):
+            if buf.decode('utf-8').endswith('\r\n\r\n'):
                 break
             if len(buf) >= 23:  # sys.maxint + 4
                 raise Exception('bad protocol')
@@ -132,4 +133,3 @@ class JsonRPCClient:
     def OnResponse(self, request, response):
         log.debug('recv response: %s' % response)
         self._observer.onResponse(request, response['result'])
-

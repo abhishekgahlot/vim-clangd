@@ -95,11 +95,11 @@ class LSPClient():
             })
 
     def closeAllFiles(self):
-        for uri in self._documents.iterkeys():
+        for uri in self._documents.keys():
             self.didCloseTestDocument(uri)
 
     def didCloseTestDocument(self, uri):
-        if not self._documents.has_key(uri):
+        if not uri in self._documents:
             return
         version = self._documents.pop(uri)['version']
         return self._rpcclient.sendNotification(
@@ -114,7 +114,7 @@ class LSPClient():
             }})
 
     def onDiagnostics(self, uri, diagnostics):
-        if not self._documents.has_key(uri):
+        if not uri in self._documents:
             return
         log.info('diagnostics for %s is updated' % uri)
         self._documents[uri]['diagnostics'] = diagnostics
@@ -122,7 +122,9 @@ class LSPClient():
 
     def getDiagnostics(self, uri):
         self.handleClientRequests()
-        if not self._documents[uri].has_key('diagnostics'):
+        if not uri in self._documents:
+            return None
+        if not 'diagnostics' in self._documents[uri]:
             return None
         return self._documents[uri]['diagnostics']
 

@@ -193,7 +193,7 @@ class ClangdManager():
         uri = GetUriFromFilePath(file_name)
         try:
             buf = vimsupport.GetBufferByName(file_name)
-            file_type = buf.options['filetype']
+            file_type = buf.options['filetype'].decode('utf-8')
             text = vimsupport.ExtractUTF8Text(buf)
             self._client.didOpenTestDocument(uri, text, file_type)
         except:
@@ -271,7 +271,7 @@ class ClangdManager():
         lined_diagnostics = {}
         diagnostics = self.GetDiagnostics(vimsupport.CurrentBufferFileName())
         for diagnostic in diagnostics:
-            if not lined_diagnostics.has_key(diagnostic['lnum']):
+            if not diagnostic['lnum'] in lined_diagnostics:
                 lined_diagnostics[diagnostic['lnum']] = []
             lined_diagnostics[diagnostic['lnum']].append(diagnostic)
 
@@ -305,7 +305,7 @@ class ClangdManager():
         if not self.isAlive():
             return ''
         current_line, current_column = vimsupport.CurrentLineAndColumn()
-        if not self.lined_diagnostics.has_key(current_line):
+        if not current_line in self.lined_diagnostics:
             return ''
         diagnostic = self.NearestDiagnostic(current_line, current_column)
         serverity_strings = [
@@ -322,7 +322,7 @@ class ClangdManager():
         if not self.isAlive():
             return
         current_line, current_column = vimsupport.CurrentLineAndColumn()
-        if not self.lined_diagnostics.has_key(current_line):
+        if not current_line in self.lined_diagnostics:
             return ''
         diagnostic = self.NearestDiagnostic(current_line, current_column)
         vimsupport.EchoTruncatedText(diagnostic['text'])
@@ -331,7 +331,7 @@ class ClangdManager():
         if not self.isAlive():
             return
         current_line, _ = vimsupport.CurrentLineAndColumn()
-        if not self.lined_diagnostics.has_key(current_line):
+        if not current_line in self.lined_diagnostics:
             return
         full_text = ''
         for diagnostic in self.lined_diagnostics[current_line]:
@@ -395,16 +395,16 @@ class ClangdManager():
         total_cnt = len(completions)
         if word == '':
             completions = sorted(
-                completions, key=lambda completion: completion['kind'] if completion.has_key('kind') else 1)
+                completions, key=lambda completion: completion['kind'] if 'kind' in completion else 1)
             completions = completions[0:20]
         else:
             log.info('start column %d, start prefix %s' % (start_column, word))
             completions = filter(lambda completion: completion['label'].startswith(word), completions)
         log.info('%d completions in total, reduced to %d' % (total_cnt, len(completions)))
         for completion in completions:
-            if not completion.has_key('kind'):
+            if not 'kind' in completion:
                 completion['kind'] = 1
-            if not completion.has_key('documentation'):
+            if not 'documentation' in completion:
                 completion['documentation'] = completion['label']
             words.append({
                 'word': completion['label'], # The actual completion

@@ -49,30 +49,9 @@ endf
 
 " Sub Entrances
 fu! s:SetUpPython() abort
-  py import sys
-  exe 'python sys.path.insert(0, "' . s:script_folder_path . '/../python")'
-python << endpython
-from vimsupport import EchoMessage
-import vim
-try:
-  import glog as log
-  log_level = str(vim.eval('g:clangd#log_level'))
-  log_path = str(vim.eval('g:clangd#log_path')) + '/vim-clangd.log'
-  log.init(log_level, log_path)
-except Exception as e:
-  EchoMessage(str(e))
-  raise
-
-try:
-  from clangd_manager import ClangdManager
-  from event_dispatcher import EventDispatcher
-  manager = ClangdManager()
-  handler = EventDispatcher(manager)
-except Exception as e:
-  EchoMessage(str(e))
-  log.exception(e)
-  raise
-endpython
+  Python import sys, vim
+  Python sys.path.insert(0, vim.eval('s:script_folder_path') + '/../python')
+  Python from loader import manager, handler
 endf
 
 fu! s:TurnOffSyntasticForCFamily()
@@ -150,75 +129,90 @@ fu! s:SetUpFirstRun()
     if !exists('g:clangd#log_path')
        let g:clangd#log_path = '~/.config/clangd/logs/'
     endif
+    if !exists('g:clangd#py_version')
+       if has('python3')
+          let g:clangd#py_version = 3
+       else
+          let g:clangd#py_version = 2
+       endif
+    endif
+    if g:clangd#py_version == 3
+        let s:python_version = 3
+        let cmd_exec = 'python3'
+    else
+        let s:python_version = 2
+        let cmd_exec = 'python'
+    endif
+    exe 'command! -nargs=1 Python '.cmd_exec.' <args>'
 endf
 
 " Watchers
 
 fu! s:VimEnter()
-  py handler.OnVimEnter()
+  Python handler.OnVimEnter()
   " fix a bug it won't call buffer enter the very first file
   call s:FileType()
 endf
 
 fu! s:VimLeave()
-  py handler.OnVimLeave()
+  Python handler.OnVimLeave()
 endf
 
 fu! s:BufferRead()
-  if pyeval('manager.FilterCurrentFile()')
+  if s:PyEval('manager.FilterCurrentFile()')
     return
   endif
-  py handler.OnBufferRead()
+  Python handler.OnBufferRead()
 endf
 
 fu! s:BufferReadPost(file_name)
-  if pyeval("manager.FilterFileName(vim.eval('a:file_name'))")
+  if s:PyEval("manager.FilterFileName(vim.eval('a:file_name'))")
     return
   endif
-  py handler.OnBufferReadPost(vim.eval('a:file_name'))
+  Python handler.OnBufferReadPost(vim.eval("a:file_name"))
 endf
 
 fu! s:FileType()
-  if pyeval('manager.FilterCurrentFile()')
+  if s:PyEval('manager.FilterCurrentFile()')
     return
   endif
   call s:SetCompletionCallback()
-  py handler.OnFileType()
+  Python handler.OnFileType()
 endf
 
 fu! s:BufferWritePost(file_name)
-  if pyeval("manager.FilterFileName(vim.eval('a:file_name'))")
+  if s:PyEval("manager.FilterFileName(vim.eval('a:file_name'))")
     return
   endif
-  py handler.OnBufferWritePost(vim.eval('a:file_name'))
+  Python handler.OnBufferWritePost(vim.eval("a:file_name"))
 endf
 
 fu! s:BufferUnload(file_name)
-  if pyeval("manager.FilterFileName(vim.eval('a:file_name'))")
+  if s:PyEval("manager.FilterFileName(vim.eval('a:file_name'))")
     return
   endif
-  py handler.OnBufferUnload(vim.eval('a:file_name'))
+  Python handler.OnBufferUnload(vim.eval("a:file_name"))
 endf
 
 fu! s:BufferDelete(file_name)
-  if pyeval("manager.FilterFileName(vim.eval('a:file_name'))")
+  if s:PyEval("manager.FilterFileName(vim.eval('a:file_name'))")
     return
   endif
-  py handler.OnBufferDelete(vim.eval('a:file_name'))
+  Python handler.OnBufferDelete(vim.eval("a:file_name"))
 endf
 
 fu! s:CursorMove()
-  if pyeval('manager.FilterCurrentFile()')
+  if s:PyEval('manager.FilterCurrentFile()')
     return
   endif
   let current_position = getpos('.')
   let s:cursor_moved = current_position != s:old_cursor_position
-  py handler.OnCursorMove()
+  Python handler.OnCursorMove()
   let s:old_cursor_position = current_position
 endf
 
 fu! s:CursorMoveInsertMode()
-  if pyeval('manager.FilterCurrentFile()')
+  if s:PyEval('manager.FilterCurrentFile()')
     return
   endif
   call s:CursorMove()
@@ -226,42 +220,42 @@ fu! s:CursorMoveInsertMode()
 endf
 
 fu! s:CursorHold()
-  if pyeval('manager.FilterCurrentFile()')
+  if s:PyEval('manager.FilterCurrentFile()')
     return
   endif
-  py handler.OnCursorHold()
+  Python handler.OnCursorHold()
 endf
 
 fu! s:InsertEnter()
-  if pyeval('manager.FilterCurrentFile()')
+  if s:PyEval('manager.FilterCurrentFile()')
     return
   endif
   let s:old_cursor_position = []
   let s:omnifunc_mode = 0
-  py handler.OnInsertEnter()
+  Python handler.OnInsertEnter()
 endf
 
 fu! s:InsertLeave()
-  if pyeval('manager.FilterCurrentFile()')
+  if s:PyEval('manager.FilterCurrentFile()')
     return
   endif
-  py handler.OnInsertLeave()
+  Python handler.OnInsertLeave()
 endf
 
 fu! s:TextChanged()
-  if pyeval('manager.FilterCurrentFile()')
+  if s:PyEval('manager.FilterCurrentFile()')
     return
   endif
-  py handler.OnTextChanged()
+  Python handler.OnTextChanged()
 endf
 
 " Helpers
 
 fu! s:ShowDiagnostics()
-  if pyeval('manager.FilterCurrentFile()')
+  if s:PyEval('manager.FilterCurrentFile()')
     return
   endif
-  let diags = pyeval('manager.GetDiagnosticsForCurrentFile()')
+  let diags = s:PyEval('manager.GetDiagnosticsForCurrentFile()')
   if !empty(diags)
     call setloclist(0, diags)
 
@@ -272,12 +266,12 @@ fu! s:ShowDiagnostics()
 endf
 
 fu! s:ForceCompile()
-  if pyeval('manager.FilterCurrentFile()')
+  if s:PyEval('manager.FilterCurrentFile()')
     return
   endif
-  py manager.ReparseCurrentFile()
-  py manager.GetDiagnosticsForCurrentFile()
-  py manager.EchoErrorMessageForCurrentLine()
+  Python manager.ReparseCurrentFile()
+  Python manager.GetDiagnosticsForCurrentFile()
+  Python manager.EchoErrorMessageForCurrentLine()
 endf
 
 fu! clangd#CodeCompleteAt(findstart, base)
@@ -285,24 +279,24 @@ fu! clangd#CodeCompleteAt(findstart, base)
     return clangd#OmniCompleteAt(a:findstart, a:base)
   endif
   if a:findstart
-    if pyeval('manager.FilterCurrentFile()')
+    if s:PyEval('manager.FilterCurrentFile()')
       return -3
     endif
     if !s:cursor_moved
       return -2
     endif
-    if !pyeval('manager.isAlive()')
+    if !s:PyEval('manager.isAlive()')
       return -2
     endif
-    let l:column = pyeval('manager.CodeCompleteAtCurrent()')
+    let l:column = s:PyEval('manager.CodeCompleteAtCurrent()')
     return l:column - 1
   endif
 
-  if pyeval('manager.FilterCurrentFile()')
+  if s:PyEval('manager.FilterCurrentFile()')
     return []
   endif
   " return completions
-  let l:completions = pyeval('manager.GetCompletions()')
+  let l:completions = s:PyEval('manager.GetCompletions()')
   " Report a result.
   if complete_check()
     return []
@@ -312,16 +306,16 @@ endf
 
 fu! clangd#OmniCompleteAt(findstart, base)
   if a:findstart
-    if !pyeval('manager.isAlive()')
+    if !s:PyEval('manager.isAlive()')
       return -2
     endif
     let s:omnifunc_mode = 1
-    let l:column = pyeval('manager.CodeCompleteAtCurrent()')
+    let l:column = s:PyEval('manager.CodeCompleteAtCurrent()')
     return l:column
   endif
 
   " return completions
-  let l:completions = pyeval('manager.GetCompletions()')
+  let l:completions = s:PyEval('manager.GetCompletions()')
   return l:completions
 endf
 
@@ -329,7 +323,7 @@ fu! s:InvokeCompletion()
   if &completefunc != "clangd#CodeCompleteAt"
     return
   endif
-  let is_blank = pyeval('not vim.current.line or vim.current.line.isspace()')
+  let is_blank = s:PyEval('not vim.current.line or vim.current.line.isspace()')
   if is_blank
     return
   endif
@@ -352,50 +346,59 @@ fu! s:SetCompletionCallback()
 endf
 
 fu! s:GotoDefinition()
-  if pyeval('manager.FilterCurrentFile()')
+  if s:PyEval('manager.FilterCurrentFile()')
     echom 'unsupported file type'
     return
   endif
 
-  py manager.GotoDefinition()
+  Python manager.GotoDefinition()
 endf
 
 fu! s:ShowDetailedDiagnostic()
-  if pyeval('manager.FilterCurrentFile()')
+  if s:PyEval('manager.FilterCurrentFile()')
     echom 'unsupported file type'
     return
   endif
 
-  py manager.EchoDetailedErrorMessage()
+  Python manager.EchoDetailedErrorMessage()
 endf
 
 fu! s:ShowCursorDetail()
-  if pyeval('manager.FilterCurrentFile()')
+  if s:PyEval('manager.FilterCurrentFile()')
     echom 'unsupported file type'
     return
   endif
 
-  py manager.ShowCursorDetail()
+  Python manager.ShowCursorDetail()
 endf
 
 fu! s:StartServer()
-  py manager.startServer(confirmed = True)
+  Python manager.startServer(confirmed = True)
 endf
 
 fu! s:StopServer()
-  py manager.stopServer(confirmed = True)
+  Python manager.stopServer(confirmed = True)
 endf
 
 fu! s:RestartServer()
-  py manager.stopServer(confirmed = True)
-  py manager.startServer(confirmed = True)
+  Python manager.stopServer(confirmed = True)
+  Python manager.startServer(confirmed = True)
+endf
+
+fu! s:PyEval(line)
+    if s:python_version == 3
+        exe 'py3 vim.command("let r = %d" % ' . a:line ' )'
+        return r
+    else
+        return pyeval(a:line)
+    endif
 endf
 
 fu! ClangdStatuslineFlag()
-  if pyeval('manager.FilterCurrentFile()')
+  if s:PyEval('manager.FilterCurrentFile()')
     return ''
   endif
-  return pyeval('manager.ErrorStatusForCurrentLine()')
+  return s:PyEval('manager.ErrorStatusForCurrentLine()')
 endf
 
 " Setup Commands
