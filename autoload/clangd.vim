@@ -387,8 +387,7 @@ endf
 
 fu! s:PyEval(line)
     if s:python_version == 3
-        exe 'py3 vim.command("let r = %d" % ' . a:line ' )'
-        return r
+        return py3eval(a:line)
     else
         return pyeval(a:line)
     endif

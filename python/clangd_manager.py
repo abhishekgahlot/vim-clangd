@@ -399,7 +399,9 @@ class ClangdManager():
             completions = completions[0:20]
         else:
             log.info('start column %d, start prefix %s' % (start_column, word))
-            completions = filter(lambda completion: completion['label'].startswith(word), completions)
+            completions = list(
+                filter(lambda completion: completion['label'].startswith(word),
+                       completions))
         log.info('%d completions in total, reduced to %d' % (total_cnt, len(completions)))
         for completion in completions:
             if not 'kind' in completion:
