@@ -95,7 +95,7 @@ class LSPClient():
             })
 
     def closeAllFiles(self):
-        for uri in self._documents.keys():
+        for uri in list(self._documents.keys()):
             self.didCloseTestDocument(uri)
 
     def didCloseTestDocument(self, uri):
