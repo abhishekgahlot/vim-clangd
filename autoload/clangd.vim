@@ -166,10 +166,10 @@ fu! s:BufferRead()
 endf
 
 fu! s:BufferReadPost(file_name)
-  if s:PyEval("manager.FilterFileName(vim.eval('a:file_name'))")
+  if s:PyEval('manager.FilterFileName("'. a:file_name . '")')
     return
   endif
-  Python handler.OnBufferReadPost(vim.eval("a:file_name"))
+  Python handler.OnBufferReadPost(vim.eval('a:file_name'))
 endf
 
 fu! s:FileType()
@@ -181,24 +181,24 @@ fu! s:FileType()
 endf
 
 fu! s:BufferWritePost(file_name)
-  if s:PyEval("manager.FilterFileName(vim.eval('a:file_name'))")
+  if s:PyEval('manager.FilterFileName("'. a:file_name . '")')
     return
   endif
-  Python handler.OnBufferWritePost(vim.eval("a:file_name"))
+  Python handler.OnBufferWritePost(vim.eval('a:file_name'))
 endf
 
 fu! s:BufferUnload(file_name)
-  if s:PyEval("manager.FilterFileName(vim.eval('a:file_name'))")
+  if s:PyEval('manager.FilterFileName("'. a:file_name . '")')
     return
   endif
-  Python handler.OnBufferUnload(vim.eval("a:file_name"))
+  Python handler.OnBufferUnload(vim.eval('a:file_name'))
 endf
 
 fu! s:BufferDelete(file_name)
-  if s:PyEval("manager.FilterFileName(vim.eval('a:file_name'))")
+  if s:PyEval('manager.FilterFileName("'. a:file_name . '")')
     return
   endif
-  Python handler.OnBufferDelete(vim.eval("a:file_name"))
+  Python handler.OnBufferDelete(vim.eval('a:file_name'))
 endf
 
 fu! s:CursorMove()
