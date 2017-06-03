@@ -1,0 +1,6 @@
+tags
+!tags/
+
+*.pyc
+*.egg
+*.egg-info
