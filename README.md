@@ -1,6 +1,10 @@
 ## vim-clangd
 [![Build Status](https://travis-ci.org/Chilledheart/vim-clangd.svg?branch=master)](http://travis-ci.org/Chilledheart/vim-clangd)
 
+## Demo
+
+![gif](http://i.imgur.com/VY1x43j.gif)
+
 ## Features
 
 |C/C++ Editor feature                |Clangd    |vim-clangd|
