@@ -157,9 +157,19 @@ fu! s:VimEnter()
   Python handler.OnVimEnter()
   " fix a bug it won't call buffer enter the very first file
   call s:FileType()
+  func
+  if has('timers')
+      fu! OnTimerCallback(timer)
+        Python handler.OnTimerCallback()
+      endf
+      let s:timer = timer_start(5000, 'OnTimerCallback', { 'repeat': -1 })
+  endif
 endf
 
 fu! s:VimLeave()
+  if has('timers')
+      exec timer_stop(s:timer)
+  endif
   Python handler.OnVimLeave()
 endf
 

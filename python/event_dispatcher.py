@@ -6,6 +6,7 @@ import vim, vimsupport
 class EventDispatcher:
     def __init__(self, manager):
         self.manager = manager
+        self._emulate_timer = not bool(vim.eval('has("timers")'))
 
     def OnVimEnter(self):
         log.debug('VimEnter')
@@ -40,9 +41,6 @@ class EventDispatcher:
     def OnBufferWritePost(self, file_name):
         # FIXME should we use buffer_number?
         self.manager.SaveFile(file_name)
-        if file_name == vimsupport.CurrentBufferFileName():
-            self.manager.GetDiagnosticsForCurrentFile()
-            self.manager.EchoErrorMessageForCurrentLine()
         log.info('BufferWritePost %s' % file_name)
 
     def OnBufferUnload(self, file_name):
@@ -54,13 +52,14 @@ class EventDispatcher:
         self.manager.CloseFile(file_name)
 
     def OnCursorMove(self):
-        self.manager.GetDiagnosticsForCurrentFile()
-        self.manager.EchoErrorMessageForCurrentLine()
+        log.debug('CursorMove')
+        if self._emulate_timer:
+            self.OnTimer()
 
     def OnCursorHold(self):
         log.debug('CursorHold')
-        self.manager.GetDiagnosticsForCurrentFile()
-        self.manager.EchoErrorMessageForCurrentLine()
+        if self._emulate_timer:
+            self.OnTimer()
 
     def OnInsertEnter(self):
         log.debug('InsertEnter')
@@ -72,3 +71,8 @@ class EventDispatcher:
         # After a change was made to the text in the current buffer in Normal mode.
         log.debug('TextChanged')
         self.manager.UpdateCurrentBuffer()
+
+    def OnTimerCallback(self):
+        log.debug('OnTimer')
+        self.manager.GetDiagnosticsForCurrentFile()
+        self.manager.EchoErrorMessageForCurrentLine()
