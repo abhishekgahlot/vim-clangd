@@ -49,7 +49,7 @@ vim-clangd will search builtin clangd and then fallback to clangd in the path.
 however there is no simple way to get a binary clangd yet including llvm
 official apt repo.
 
-ubuntu distribution, you can refer to [docker/Dockerfile.xenial](https://github.com/Chilledheart/vim-clangd/blob/master/docker/Dockerfile.xenial) as well.
+if you are using ubuntu, you can refer to [docker/Dockerfile.xenial](https://github.com/Chilledheart/vim-clangd/blob/master/docker/Dockerfile.xenial) as well.
 
 see more at [clang docs](https://clang.llvm.org/get_started.html) but "extra Clang tools" is not optional.
 
