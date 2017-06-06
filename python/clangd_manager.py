@@ -398,7 +398,6 @@ class ClangdManager():
                 completions, key=lambda completion: completion['kind'] if 'kind' in completion else 1)
             completions = completions[0:20]
         else:
-            log.info('start column %d, start prefix %s' % (start_column, word))
             completions = list(
                 filter(lambda completion: completion['label'].startswith(word),
                        completions))
