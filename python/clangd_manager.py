@@ -369,7 +369,6 @@ class ClangdManager():
         current_line = vimsupport.CurrentLine()
         _, column = vimsupport.CurrentLineAndColumn()
         start_column = min(column, len(current_line))
-        start_column -= 1
         while start_column:
             c = current_line[start_column - 1]
             if not (str.isalnum(c) or c == '_'):
@@ -398,6 +397,7 @@ class ClangdManager():
                 completions, key=lambda completion: completion['kind'] if 'kind' in completion else 1)
             completions = completions[0:20]
         else:
+            log.info('start column %d, start prefix %s' % (start_column, word))
             completions = list(
                 filter(lambda completion: completion['label'].startswith(word),
                        completions))
