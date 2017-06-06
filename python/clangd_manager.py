@@ -75,44 +75,26 @@ def CompletionItemKind(kind):
         return 'f'
     return ''
 
-def StartProcess(name):
-    from os import pipe, devnull
-    log_path = os.path.expanduser(
-        vim.eval('g:clangd#log_path') + '/clangd.log')
-    fdClangd = open(log_path, 'w+')
-    fdInRead, fdInWrite = pipe()
-    fdOutRead, fdOutWrite = pipe()
-    clangd = Popen(name, stdin=fdInRead, stdout=fdOutWrite, stderr=fdClangd)
-    return clangd, fdInWrite, fdOutRead, fdClangd
-
 
 class ClangdManager():
     def __init__(self):
         signal(SIGINT, SIG_IGN)
-        log.info('ClangdManager loaded')
         self.lined_diagnostics = {}
         self.last_completions = {}
         self.state = {}
         self._clangd = None
         self._client = None
         self._clangd_logfd = None
+        self._in_shutdown = False
         autostart = bool(vim.eval('g:clangd#autostart'))
         if autostart:
             self.startServer(confirmed=True)
 
-    def __del__(self):
-        log.info('ClangdManager unloaded')
-
-    def __str__(self):
-        return 'ClangdManager'
-
     def isAlive(self):
-        return self._clangd and self._clangd.poll(
-        ) == None and self._client.isAlive()
+        return self._client and self._client.isAlive()
 
     def startServer(self, confirmed=False):
         if self._clangd:
-            log.info('clangd connected')
             vimsupport.EchoMessage(
                 'clangd is connected, please stop it first!')
             return
@@ -120,50 +102,46 @@ class ClangdManager():
                 'Should we start clangd?'):
             clangd_executable = str(vim.eval('g:clangd#clangd_executable'))
             clangd_executable = os.path.expanduser(clangd_executable)
+            clangd_log_path = os.path.expanduser(
+                vim.eval('g:clangd#log_path') + '/clangd.log')
             try:
-                clangd, fdRead, fdWrite, fdClangd = StartProcess(
-                    clangd_executable)
+                self._client = LSPClient(clangd_executable, clangd_log_path, self)
             except:
                 log.exception('failed to start clangd')
                 vimsupport.EchoMessage('failed to start clangd executable')
                 return
-            log.info('clangd started, pid %d' % clangd.pid)
-            self._clangd = clangd
-            self._client = LSPClient(fdRead, fdWrite)
-            self._clangd_logfd = fdClangd
             self._client.initialize()
-            self._client.onInitialized()
 
     def stopServer(self, confirmed=False):
         if confirmed or vimsupport.PresentYesOrNoDialog(
                 'Should we stop clangd?'):
             try:
-                self._client.shutdown()
-                self._client.exit()
-                if self._clangd.poll() == None:
-                    self._clangd.terminate()
-                if self._clangd.poll() == None:
-                    self._clangd.kill()
-                self._clangd_logfd.close()
-                self._clangd = None
+                client = self._client
                 self._client = None
-                self._clangd_logfd = None
+                client.shutdown()
+                client.exit()
             except:
                 log.exception('failed to stop clangd')
                 return
-            log.info('clangd stopped')
 
-    def on_server_connected(self, wc):
-        vimsupport.EchoMessage('connected with clangd daemon')
-        log.info('observer: clangd connected')
+    def restartServer(self):
+        log.info('restart clangd')
+        self.stopServer(confirmed=True)
+        self.startServer(confirmed=True)
 
-    def on_server_down(self, wc):
-        vimsupport.EchoMessage('lost connection with clangd daemon')
-        log.info('observer: clangd down')
+    def on_server_connected(self):
+        log.info('clangd up')
+        self._client.onInitialized()
+
+    def on_server_down(self):
+        log.warn('clangd down unexceptedly')
 
         self.lined_diagnostics = {}
         vimsupport.ClearClangdSyntaxMatches()
         vimsupport.UnplaceAllSigns()
+
+        if not self._in_shutdown:
+            self.restartServer()
 
     def on_bad_message_received(self, wc, message):
         log.info('observer: bad message')

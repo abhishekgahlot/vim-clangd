@@ -18,9 +18,13 @@ class EventDispatcher:
 
     def OnVimLeave(self):
         log.debug('VimLeave')
-        # BufUnload won't be called at exit, you need to call it yourself
-        self.manager.CloseAllFiles()
-        self.manager.stopServer(confirmed=True)
+        self.manager.in_shutdown = True
+        try:
+            # BufUnload won't be called at exit, you need to call it yourself
+            self.manager.CloseAllFiles()
+            self.manager.stopServer(confirmed=True)
+        except:
+            log.exception("vim-clangd plugin unload with error")
         log.info('vim-clangd plugin fully unloaded')
 
     def OnBufferReadPost(self, file_name):
