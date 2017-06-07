@@ -82,10 +82,9 @@ class ClangdManager():
         self.lined_diagnostics = {}
         self.last_completions = {}
         self.state = {}
-        self._clangd = None
         self._client = None
-        self._clangd_logfd = None
         self._in_shutdown = False
+        self._documents = {}
         autostart = bool(vim.eval('g:clangd#autostart'))
         if autostart:
             self.startServer(confirmed=True)
@@ -94,7 +93,7 @@ class ClangdManager():
         return self._client and self._client.isAlive()
 
     def startServer(self, confirmed=False):
-        if self._clangd:
+        if self._client:
             vimsupport.EchoMessage(
                 'clangd is connected, please stop it first!')
             return
@@ -132,6 +131,8 @@ class ClangdManager():
     def on_server_connected(self):
         log.info('clangd up')
         self._client.onInitialized()
+        # wipe all exist documents
+        self._documents = {}
 
     def on_server_down(self):
         log.warn('clangd down unexceptedly')
@@ -171,9 +172,7 @@ class ClangdManager():
         uri = GetUriFromFilePath(file_name)
         try:
             buf = vimsupport.GetBufferByName(file_name)
-            file_type = buf.options['filetype'].decode('utf-8')
-            text = vimsupport.ExtractUTF8Text(buf)
-            self._client.didOpenTestDocument(uri, text, file_type)
+            self.didOpenFile(buf)
         except:
             log.exception('failed to open %s' % file_name)
             vimsupport.EchoTruncatedText('unable to open %s' % file_name)
@@ -214,6 +213,9 @@ class ClangdManager():
             return True
 
         uri = GetUriFromFilePath(file_name)
+        if not uri in self._documents:
+            return
+        version = self._documents.pop(uri)['version']
         try:
             self._client.didCloseTestDocument(uri)
         except:
@@ -228,18 +230,28 @@ class ClangdManager():
             return True
         return self.CloseFile(file_name)
 
-    def GetDiagnostics(self, file_name):
+    def onDiagnostics(self, uri, diagnostics):
+        log.info('diagnostics for %s is updated' % uri)
+        self._documents[uri]['diagnostics'] = diagnostics
+
+    def GetDiagnostics(self, buf):
         if not self.isAlive():
             return []
 
+        file_name = buf.name
         uri = GetUriFromFilePath(file_name)
+        needReopen = False
+        if not uri in self._documents:
+            needReopen = True
         try:
-            response = self._client.getDiagnostics(uri)
+            self.didOpenFile(buf)
+            self._client.handleClientRequests()
         except:
             log.exception('failed to get diagnostics %s' % file_name)
             return []
-        if response is None:
+        if not uri in self._documents or not 'diagnostics' in self._documents[uri]:
             return []
+        response = self._documents[uri]['diagnostics']
         return vimsupport.ConvertDiagnosticsToQfList(file_name, response)
 
     def GetDiagnosticsForCurrentFile(self):
@@ -247,7 +259,7 @@ class ClangdManager():
             return []
 
         lined_diagnostics = {}
-        diagnostics = self.GetDiagnostics(vimsupport.CurrentBufferFileName())
+        diagnostics = self.GetDiagnostics(vimsupport.CurrentBuffer())
         for diagnostic in diagnostics:
             if not diagnostic['lnum'] in lined_diagnostics:
                 lined_diagnostics[diagnostic['lnum']] = []
@@ -318,6 +330,29 @@ class ClangdManager():
                                            diagnostic['text'])
         vimsupport.EchoText(full_text[:-1])
 
+    def didOpenFile(self, buf):
+        file_name = buf.name
+        uri = GetUriFromFilePath(buf.name)
+        if uri in self._documents:
+            return
+        file_type = buf.options['filetype'].decode('utf-8')
+        text = vimsupport.ExtractUTF8Text(buf)
+        self._documents[uri] = {}
+        self._documents[uri]['version'] = 1
+        self._client.didOpenTestDocument(uri, text, file_type)
+
+    def didChangeFile(self, buf):
+        file_name = buf.name
+        uri = GetUriFromFilePath(buf.name)
+        if not uri in self._documents:
+            # not sure why this happens
+            self.didOpenFile(buf)
+            return
+        version = self._documents[uri][
+            'version'] = self._documents[uri]['version'] + 1
+        textbody = vimsupport.ExtractUTF8Text(buf)
+        self._client.didChangeTestDocument(uri, version, textbody)
+
     def UpdateSpecifiedBuffer(self, buf):
         if not self.isAlive():
             return
@@ -327,10 +362,7 @@ class ClangdManager():
         if not buf.options['modified']:
             if (len(buf) > 1) or (len(buf) == 1 and len(buf[0])):
                 return
-        textbody = vimsupport.ExtractUTF8Text(buf)
-        # we need to solve this
-        uri = GetUriFromFilePath(buf.name)
-        self._client.didChangeTestDocument(uri, textbody)
+        self.didChangeFile(buf)
 
     def UpdateCurrentBuffer(self):
         if not self.isAlive():
@@ -452,6 +484,7 @@ class ClangdManager():
         if not self.isAlive():
             return
         try:
-            self._client.closeAllFiles()
+            for uri in list(self._documents.keys()):
+                self._client.didCloseTestDocument(uri)
         except:
             log.exception('failed to close all files')

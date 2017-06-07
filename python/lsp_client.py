@@ -37,18 +37,29 @@ class LSPClient():
             clangd_executable, clangd_log_path)
         log.info('clangd started, pid %d' % clangd.pid)
         self._clangd = clangd
+        self._input_fd = fdRead
+        self._output_fd = fdWrite
         self._clangd_logfd = fdClangd
         self._rpcclient = JsonRPCClient(self, fdRead, fdWrite)
         self._is_alive = True
-        self._documents = {}
         self._manager = manager
         self.RegisterSignalHandler()
 
     def RegisterSignalHandler(self):
-        signal(SIGCHLD, lambda signal, frname: self.onServerDown())
+        signal(SIGCHLD, lambda signal, frname: self.OnSigChld())
 
     def DeregisterSignalHandler(self):
         signal(SIGCHLD, SIG_IGN)
+
+    def OnSigChld(self):
+        if not self._is_alive:
+            return
+        # we have lots child processes to spawn and exit with vim
+        # it is saving our live to detect clangd process here
+        try:
+            os.kill(self._clangd.pid, 0)
+        except OSError:
+            self.onServerDown()
 
     def CleanUp(self):
         self.DeregisterSignalHandler()
@@ -58,6 +69,8 @@ class LSPClient():
             self._clangd.kill()
         log.info('clangd stopped, pid %d' % self._clangd.pid)
         self._clangd_logfd.close()
+        os.close(self._input_fd)
+        os.close(self._output_fd)
 
     def isAlive(self):
         return self._is_alive and self._clangd.poll() == None
@@ -107,8 +120,6 @@ class LSPClient():
 
     # notifications
     def didOpenTestDocument(self, uri, text, file_type):
-        self._documents[uri] = {}
-        self._documents[uri]['version'] = 1
         return self._rpcclient.sendNotification(
             DidOpenTextDocument_NOTIFICATION, {
                 'textDocument': {
@@ -119,9 +130,7 @@ class LSPClient():
                 }
             })
 
-    def didChangeTestDocument(self, uri, content):
-        version = self._documents[uri][
-            'version'] = self._documents[uri]['version'] + 1
+    def didChangeTestDocument(self, uri, version, content):
         return self._rpcclient.sendNotification(
             DidChangeTextDocument_NOTIFICATION, {
                 'textDocument': {
@@ -133,14 +142,7 @@ class LSPClient():
                 }]
             })
 
-    def closeAllFiles(self):
-        for uri in list(self._documents.keys()):
-            self.didCloseTestDocument(uri)
-
     def didCloseTestDocument(self, uri):
-        if not uri in self._documents:
-            return
-        version = self._documents.pop(uri)['version']
         return self._rpcclient.sendNotification(
             DidCloseTextDocument_NOTIFICATION, {'textDocument': {
                 'uri': uri
@@ -153,19 +155,7 @@ class LSPClient():
             }})
 
     def onDiagnostics(self, uri, diagnostics):
-        if not uri in self._documents:
-            return
-        log.info('diagnostics for %s is updated' % uri)
-        self._documents[uri]['diagnostics'] = diagnostics
-        pass
-
-    def getDiagnostics(self, uri):
-        self.handleClientRequests()
-        if not uri in self._documents:
-            return None
-        if not 'diagnostics' in self._documents[uri]:
-            return None
-        return self._documents[uri]['diagnostics']
+        self._manager.onDiagnostics(uri, diagnostics)
 
     def completeAt(self, uri, line, character):
         return self._rpcclient.sendRequest(Completion_REQUEST, {

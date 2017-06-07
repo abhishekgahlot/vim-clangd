@@ -3,7 +3,7 @@ import errno
 import os
 import signal
 
-class TimeoutError(Exception):
+class TimeoutError(OSError):
     pass
 
 def timeout(seconds=10, error_message=os.strerror(errno.ETIME)):

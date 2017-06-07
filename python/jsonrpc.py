@@ -13,7 +13,8 @@
 #
 import json, os
 import glog as log
-from timeout import timeout, TimeoutError
+from timeout import timeout
+from errno import EINTR
 
 
 def EstimateUnreadBytes(fd):
@@ -24,6 +25,30 @@ def EstimateUnreadBytes(fd):
     ioctl(fd, FIONREAD, buf, 1)
     return buf[0]
 
+@timeout(5)
+def write_utf8(fd, data):
+    msg = data.encode('utf-8')
+    while len(msg):
+        try:
+            written = os.write(fd, msg)
+            msg = msg[written:]
+        except OSError,e:
+          if e.errno != EINTR:
+              raise
+    return msg
+
+@timeout(5)
+def read_utf8(fd, length):
+    msg = bytes()
+    while length:
+        try:
+            buf = os.read(fd, length)
+            length -= len(buf)
+            msg += buf
+        except OSError,e:
+          if e.errno != EINTR:
+              raise
+    return msg.decode('utf-8')
 
 class JsonRPCClient:
     def __init__(self, request_observer, input_fd, output_fd):
@@ -38,7 +63,7 @@ class JsonRPCClient:
         self._no = self._no + 1
         try:
             r = self.SendMsg(method, params, Id=Id)
-        except TimeoutError:
+        except OSError:
             self._observer.onServerDown()
             raise
         log.debug('send request: %s' % r)
@@ -47,7 +72,7 @@ class JsonRPCClient:
         while True:
             try:
                 rr = self.RecvMsg()
-            except TimeoutError:
+            except OSError:
                 self._observer.onServerDown()
                 raise
             if 'id' in rr and rr['id'] == Id:
@@ -59,7 +84,7 @@ class JsonRPCClient:
     def sendNotification(self, method, params={}):
         try:
             r= self.SendMsg(method, params)
-        except TimeoutError:
+        except OSError:
             self._observer.onServerDown()
             raise
         log.debug('send notifications: %s' % r)
@@ -68,11 +93,10 @@ class JsonRPCClient:
         while EstimateUnreadBytes(self._output_fd) > 0:
             try:
                 self.RecvMsg()
-            except TimeoutError:
+            except OSError:
                 self._observer.onServerDown()
                 raise
 
-    @timeout(5)
     def SendMsg(self, method, params={}, Id=None):
         r = {}
         r['jsonrpc'] = '2.0'
@@ -82,21 +106,15 @@ class JsonRPCClient:
             r['id'] = Id
             self._requests[Id] = r
         request = json.dumps(r, separators=(',',':'), sort_keys=True)
-        os.write(self._input_fd, (
-            u'Content-Length: %d\r\n\r\n' % len(request)).encode('utf-8'))
-        os.write(self._input_fd, request.encode('utf-8'))
+        write_utf8(self._input_fd, u'Content-Length: %d\r\n\r\n' % len(request))
+        write_utf8(self._input_fd, request)
         return r
 
-    @timeout(5)
     def RecvMsg(self):
         msg_length = self.RecvMsgHeader()
-        msg = bytes()
-        while msg_length:
-            buf = os.read(self._output_fd, msg_length)
-            msg_length -= len(buf)
-            msg += buf
+        msg = read_utf8(self._output_fd, msg_length)
 
-        rr = json.loads(msg.decode('utf-8'))
+        rr = json.loads(msg)
         if not 'id' in rr:
             self.OnNotification(rr)
         elif not rr['id'] in self._requests:
@@ -106,20 +124,19 @@ class JsonRPCClient:
             self._requests.pop(rr['id'])
         return rr
 
-    @timeout(5)
     def RecvMsgHeader(self):
-        os.read(self._output_fd, len('Content-Length: '))
-        buf = bytes()
-        buf += os.read(self._output_fd, 4)
+        read_utf8(self._output_fd, len('Content-Length: '))
+        msg = u''
+        msg += read_utf8(self._output_fd, 4)
         while True:
-            if buf.decode('utf-8').endswith('\r\n\r\n'):
+            if msg.endswith('\r\n\r\n'):
                 break
-            if len(buf) >= 23:  # sys.maxint + 4
+            if len(msg) >= 23:  # sys.maxint + 4
                 raise Exception('bad protocol')
-            buf += os.read(self._output_fd, 1)
+            msg += read_utf8(self._output_fd, 1)
 
-        buf = buf[:-4]
-        length = int(buf)
+        msg = msg[:-4]
+        length = int(msg)
         return length
 
     def OnNotification(self, request):
