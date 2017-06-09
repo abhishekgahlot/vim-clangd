@@ -184,7 +184,7 @@ class ClangdManager():
     def OpenCurrentFile(self):
         file_name = vimsupport.CurrentBufferFileName()
         if not file_name:
-            return True
+            return False
         if not self.OpenFile(file_name):
             return False
         return True
@@ -388,6 +388,8 @@ class ClangdManager():
 
     def CodeCompleteAtCurrent(self):
         if not self.isAlive():
+            return -2
+        if not self.OpenCurrentFile():
             return -2
 
         line, column = vimsupport.CurrentLineAndColumn()
