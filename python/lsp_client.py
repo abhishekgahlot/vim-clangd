@@ -22,7 +22,7 @@ PublishDiagnostics_NOTIFICATION = 'textDocument/publishDiagnostics'
 
 def StartProcess(name, clangd_log_path = None):
     from os import pipe, devnull
-    if not clangd_log_path:
+    if not clangd_log_path or not log.logger.isEnabledFor(log.DEBUG):
         clangd_log_path = devnull
     fdClangd = open(clangd_log_path, 'w+')
     fdInRead, fdInWrite = pipe()

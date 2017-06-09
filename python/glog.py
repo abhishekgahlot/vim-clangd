@@ -94,7 +94,7 @@ GLOG_PREFIX_REGEX = (
 def init(log_level = None, log_path = None):
     if log_path is not None:
         log_path = os.path.expanduser(log_path)
-    handler = logging.FileHandler(log_path)
+    handler = logging.FileHandler(log_path, delay=5)
     handler.setFormatter(GlogFormatter())
     logger.addHandler(handler)
 
