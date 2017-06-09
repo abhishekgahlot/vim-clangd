@@ -231,6 +231,8 @@ class ClangdManager():
         return self.CloseFile(file_name)
 
     def onDiagnostics(self, uri, diagnostics):
+        if uri not in self._documents:
+            return
         log.info('diagnostics for %s is updated' % uri)
         self._documents[uri]['diagnostics'] = diagnostics
 
@@ -241,10 +243,9 @@ class ClangdManager():
         file_name = buf.name
         uri = GetUriFromFilePath(file_name)
         needReopen = False
-        if not uri in self._documents:
-            needReopen = True
+        if not self.OpenFile(file_name):
+            return []
         try:
-            self.didOpenFile(buf)
             self._client.handleClientRequests()
         except:
             log.exception('failed to get diagnostics %s' % file_name)
