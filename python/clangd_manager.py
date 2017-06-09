@@ -178,7 +178,6 @@ class ClangdManager():
             vimsupport.EchoTruncatedText('unable to open %s' % file_name)
             return False
 
-        log.info('file %s opened' % file_name)
         return True
 
     def OpenCurrentFile(self):
@@ -341,6 +340,7 @@ class ClangdManager():
         self._documents[uri] = {}
         self._documents[uri]['version'] = 1
         self._client.didOpenTestDocument(uri, text, file_type)
+        log.info('file %s opened' % file_name)
 
     def didChangeFile(self, buf):
         file_name = buf.name
